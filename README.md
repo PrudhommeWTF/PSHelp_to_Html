@@ -1,30 +1,30 @@
 ---
 external help file: HelpToHtml-help.xml
 Module Name: HelpToHtml
-online version:
+online version: https://github.com/PrudhommeWTF/PSHelp_to_Html
 schema: 2.0.0
 ---
 
 # New-HtmlHelp
 
 ## SYNOPSIS
-New-HtmlHelp will create an HTML file of helps written for specified PowerShell Cmdlets, Scripts or Modules.
+New-HtmlHelp will create an HTML file of Comment Based Help written for specified PowerShell Cmdlets, Scripts or Modules.
 
 ## SYNTAX
 
 ### Module (Default)
 ```
-New-HtmlHelp -Module <String> [-OutputFolder <String>] [-WithModulePage] [<CommonParameters>]
+New-HtmlHelp -Module <String> [-RelatedHelp <ArrayList>] [-OutputFolder <String>] [<CommonParameters>]
 ```
 
 ### Command
 ```
-New-HtmlHelp -Command <String[]> [-OutputFolder <String>] [-WithModulePage] [<CommonParameters>]
+New-HtmlHelp -Command <String[]> [-RelatedHelp <ArrayList>] [-OutputFolder <String>] [<CommonParameters>]
 ```
 
 ### Script
 ```
-New-HtmlHelp -Script <String> [-OutputFolder <String>] [-WithModulePage] [<CommonParameters>]
+New-HtmlHelp -Script <String> [-RelatedHelp <ArrayList>] [-OutputFolder <String>] [<CommonParameters>]
 ```
 
 ## DESCRIPTION
@@ -35,36 +35,68 @@ The Funcion use Comment based help written by Functions, Cmdlets, Scripts or Mod
 
 ### EXAMPLE 1
 ```
-New-HtmlHelp -Module Value
+New-HtmlHelp -Module ActiveDirectory
 ```
 
-Describe what this call does
+Will create a local HTML file containing all the Cmdlet in ActiveDirectory module and their Comment Based Help content.
 
 ### EXAMPLE 2
 ```
-New-HtmlHelp -Command Value
+New-HtmlHelp -Module ActiveDirectory -RelatedHelp @(
 ```
 
-Describe what this call does
+@{
+        Title = 'Title'
+        UriOrFilePath = 'UriOrFilePath'
+    }
+)
+
+Will create a local HTML file containing all the Cmdlet in ActiveDirectory module and their Comment Based Help content, with a link with the specified title pointing to the specified path ou Uri.
 
 ### EXAMPLE 3
 ```
-New-HtmlHelp -Script Value
+New-HtmlHelp -Command 'New-Item','Remove-Item'
 ```
 
-Describe what this call does
+Will create a local HTML file containing Comment Based Help of Cmdlets New-Item and Remove-Item.
 
 ### EXAMPLE 4
 ```
-New-HtmlHelp -OutputFolder Value -WithModulePage
+New-HtmlHelp -Command 'New-Item','Remove-Item' -RelatedHelp @(
 ```
 
-Describe what this call does
+@{
+        Title = 'Title'
+        UriOrFilePath = 'UriOrFilePath'
+    }
+)
+
+Will create a local HTML file containing Comment Based Help of Cmdlets New-Item and Remove-Item, with a link with the specified title pointing to the specified path ou Uri.
+
+### EXAMPLE 5
+```
+New-HtmlHelp -Script .\test.ps1
+```
+
+Will create a local HTML file containing Comment Based Help of the PowerShell Script 'test.ps1'.
+
+### EXAMPLE 6
+```
+New-HtmlHelp -Script .\test.ps1 -RelatedHelp @(
+```
+
+@{
+        Title = 'Title'
+        UriOrFilePath = 'UriOrFilePath'
+    }
+)
+
+Will create a local HTML file containing Comment Based Help of the PowerShell Script 'test.ps1', with a link with the specified title pointing to the specified path ou Uri.
 
 ## PARAMETERS
 
 ### -Module
-Module Name or Path to the .
+Module Name or Path to the PSM1 file.
 
 ```yaml
 Type: String
@@ -74,12 +106,12 @@ Aliases:
 Required: True
 Position: Named
 Default value: None
-Accept pipeline input: False
+Accept pipeline input: True (ByValue)
 Accept wildcard characters: False
 ```
 
 ### -Command
-Describe parameter -Command.
+Names of the PowerShell Cmdlets or Functions to create HTML Help for.
 
 ```yaml
 Type: String[]
@@ -94,7 +126,7 @@ Accept wildcard characters: False
 ```
 
 ### -Script
-Describe parameter -Script.
+Path to the script to create HTML Help for.
 
 ```yaml
 Type: String
@@ -108,8 +140,28 @@ Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
+### -RelatedHelp
+Allows you to add links to outside folders ou URL in the HTML output.
+Parameter value needs to be an ArrayList of Hastables composed as follow:
+    @{
+        Title = 'Title'
+        UriOrFilePath = 'UriOrFilePath'
+    }
+
+```yaml
+Type: ArrayList
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: Named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
 ### -OutputFolder
-Describe parameter -OutputFolder.
+Specify the path to write the HTML file in.
 
 ```yaml
 Type: String
@@ -118,22 +170,7 @@ Aliases:
 
 Required: False
 Position: Named
-Default value: .\docs
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
-### -WithModulePage
-Describe parameter -WithModulePage.
-
-```yaml
-Type: SwitchParameter
-Parameter Sets: (All)
-Aliases:
-
-Required: False
-Position: Named
-Default value: True
+Default value: .
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
@@ -144,15 +181,14 @@ For more information, see about_CommonParameters (http://go.microsoft.com/fwlink
 
 ## INPUTS
 
-### List of input types that are accepted by this function.
+### System.String
 ## OUTPUTS
 
-### List of output types produced by this function.
+### System.IO.File
 ## NOTES
-Place additional notes here.
+Author: Thomas Prud'homme (Blog: https://blog.prudhomme.wtf Tw: @Prudhomme_WTF).
 
 ## RELATED LINKS
 
-[URLs to related sites
-The first link is opened by Get-Help -Online New-HtmlHelp]()
+[https://github.com/PrudhommeWTF/PSHelp_to_Html](https://github.com/PrudhommeWTF/PSHelp_to_Html)
 

@@ -1,55 +1,87 @@
 ﻿Function New-HtmlHelp {
     <#
         .SYNOPSIS
-        New-HtmlHelp will create an HTML file of helps written for specified PowerShell Cmdlets, Scripts or Modules.
+        New-HtmlHelp will create an HTML file of Comment Based Help written for specified PowerShell Cmdlets, Scripts or Modules.
 
         .DESCRIPTION
         This PowerShell Function will create HTML files based on items provided Help.
         The Funcion use Comment based help written by Functions, Cmdlets, Scripts or Modules provider to create a proper HTML file.
 
         .PARAMETER Module
-        Module Name or Path to the .
+        Module Name or Path to the PSM1 file.
 
         .PARAMETER Command
-        Describe parameter -Command.
+        Names of the PowerShell Cmdlets or Functions to create HTML Help for.
 
         .PARAMETER Script
-        Describe parameter -Script.
+        Path to the script to create HTML Help for.
+
+        .PARAMETER RelatedHelp
+        Allows you to add links to outside folders ou URL in the HTML output. Parameter value needs to be an ArrayList of Hastables composed as follow:
+            @{
+                Title = 'Title'
+                UriOrFilePath = 'UriOrFilePath'
+            }
 
         .PARAMETER OutputFolder
-        Describe parameter -OutputFolder.
-
-        .PARAMETER WithModulePage
-        Describe parameter -WithModulePage.
+        Specify the path to write the HTML file in.
 
         .EXAMPLE
-        New-HtmlHelp -Module Value
-        Describe what this call does
+        New-HtmlHelp -Module ActiveDirectory
+
+        Will create a local HTML file containing all the Cmdlet in ActiveDirectory module and their Comment Based Help content.
 
         .EXAMPLE
-        New-HtmlHelp -Command Value
-        Describe what this call does
+        New-HtmlHelp -Module ActiveDirectory -RelatedHelp @(
+            @{
+                Title = 'Title'
+                UriOrFilePath = 'UriOrFilePath'
+            }
+        )
+
+        Will create a local HTML file containing all the Cmdlet in ActiveDirectory module and their Comment Based Help content, with a link with the specified title pointing to the specified path ou Uri.
 
         .EXAMPLE
-        New-HtmlHelp -Script Value
-        Describe what this call does
+        New-HtmlHelp -Command 'New-Item','Remove-Item'
+
+        Will create a local HTML file containing Comment Based Help of Cmdlets New-Item and Remove-Item.
 
         .EXAMPLE
-        New-HtmlHelp -OutputFolder Value -WithModulePage
-        Describe what this call does
+        New-HtmlHelp -Command 'New-Item','Remove-Item' -RelatedHelp @(
+            @{
+                Title = 'Title'
+                UriOrFilePath = 'UriOrFilePath'
+            }
+        )
+
+        Will create a local HTML file containing Comment Based Help of Cmdlets New-Item and Remove-Item, with a link with the specified title pointing to the specified path ou Uri.
+
+        .EXAMPLE
+        New-HtmlHelp -Script .\test.ps1
+
+        Will create a local HTML file containing Comment Based Help of the PowerShell Script 'test.ps1'.
+
+        .EXAMPLE
+        New-HtmlHelp -Script .\test.ps1 -RelatedHelp @(
+            @{
+                Title = 'Title'
+                UriOrFilePath = 'UriOrFilePath'
+            }
+        )
+
+        Will create a local HTML file containing Comment Based Help of the PowerShell Script 'test.ps1', with a link with the specified title pointing to the specified path ou Uri.
 
         .NOTES
-        Place additional notes here.
+        Author: Thomas Prud'homme (Blog: https://blog.prudhomme.wtf Tw: @Prudhomme_WTF).
 
         .LINK
-        URLs to related sites
-        The first link is opened by Get-Help -Online New-HtmlHelp
+        https://github.com/PrudhommeWTF/PSHelp_to_Html
 
         .INPUTS
-        List of input types that are accepted by this function.
+        System.String
 
         .OUTPUTS
-        List of output types produced by this function.
+        System.IO.File
     #>
     [CmdletBinding(
         DefaultParameterSetName = 'Module'
@@ -57,9 +89,10 @@
     [OutputType([IO.FileInfo[]])]
     Param(
         [Parameter(
-            Mandatory = $true,
-            HelpMessage = 'Module name or path the PSM1 file of the module to write HTML help for.',
-            ParameterSetName = 'Module'
+            Mandatory         = $true,
+            ValueFromPipeline = $true,
+            HelpMessage       = 'Module name or path the PSM1 file of the module to write HTML help for.',
+            ParameterSetName  = 'Module'
         )]
         [String]$Module,
 
@@ -79,43 +112,33 @@
         [ValidateScript({Test-Path -Path $_})]
         [String]$Script,
 
-        [String]$OutputFolder = '.\docs',
+        [Collections.ArrayList]$RelatedHelp,
 
-        [Switch]$WithModulePage = $true
+        [String]$OutputFolder = '.'
     )
-
-    if (-not (Test-Path -Path $OutputFolder)) {
-        try {
-            New-Item -Path $OutputFolder -ItemType Directory -ErrorAction Stop
-            Write-Verbose -Message "Created $OutputFolder folder."
-        }
-        catch {
-            throw $_
-        }
-    }
-
-    Function Convert-HelpToHtml {
-        Param(
-            [Parameter(
-                Mandatory = $true,
-                HelpMessage = 'Help object to convert to HTML.',
-                ValueFromPipeline = $true,
-                ValueFromPipelineByPropertyName = $true
-            )]
-            [Object]$HelpObject
-        )
-        Begin {
-            Function New-HelpParameterToHtml {
-                Param(
-                    [Parameter(
-                        Mandatory = $true,
-                        HelpMessage = 'Help Parameter to convert to HTML.',
-                        ValueFromPipeline = $true
-                    )]
-                    [Object]$Parameters
-                )
-                Process {
-                    @"
+    Begin {
+        Function Convert-HelpToHtml {
+            Param(
+                [Parameter(
+                    Mandatory = $true,
+                    HelpMessage = 'Help object to convert to HTML.',
+                    ValueFromPipeline = $true,
+                    ValueFromPipelineByPropertyName = $true
+                )]
+                [Object]$HelpObject
+            )
+            Begin {
+                Function New-HelpParameterToHtml {
+                    Param(
+                        [Parameter(
+                            Mandatory = $true,
+                            HelpMessage = 'Help Parameter to convert to HTML.',
+                            ValueFromPipeline = $true
+                        )]
+                        [Object]$Parameters
+                    )
+                    Process {
+                        @"
 <h5>-$($_.name)</h5>
 <div class="parameterInfo">
     <p>$($_.description.Text)</p>
@@ -143,19 +166,19 @@
     </table>
 </div>
 "@
+                    }
                 }
-            }
-            Function New-HelpExampleToHtml {
-                Param(
-                    [Parameter(
-                        Mandatory = $true,
-                        HelpMessage = 'Help Examples to convert to HTML.',
-                        ValueFromPipeline = $true
-                    )]
-                    [Object]$Example
-                )
-                Process {
-                    @"
+                Function New-HelpExampleToHtml {
+                    Param(
+                        [Parameter(
+                            Mandatory = $true,
+                            HelpMessage = 'Help Examples to convert to HTML.',
+                            ValueFromPipeline = $true
+                        )]
+                        [Object]$Example
+                    )
+                    Process {
+                        @"
 <strong>$($_.title)</strong>
 <div class="card">
     <div class="card-header">
@@ -169,19 +192,19 @@ $($_.introduction.Text) $($_.code)
 </div>
 <p>$($_.remarks.text)</p>
 "@
+                    }
                 }
-            }
-            Function New-HelpSyntaxToHtml {
-                Param(
-                    [Parameter(
-                        Mandatory = $true,
-                        HelpMessage = 'Help Syntax to convert to HTML.',
-                        ValueFromPipeline = $true
-                    )]
-                    [Object]$Syntax
-                )
-                Process {
-                    $Output = @"
+                Function New-HelpSyntaxToHtml {
+                    Param(
+                        [Parameter(
+                            Mandatory = $true,
+                            HelpMessage = 'Help Syntax to convert to HTML.',
+                            ValueFromPipeline = $true
+                        )]
+                        [Object]$Syntax
+                    )
+                    Process {
+                        $Output = @"
 <strong>$($_.title)</strong>
 <div class="card">
     <div class="card-header">
@@ -191,91 +214,91 @@ $($_.introduction.Text) $($_.code)
         <pre class="card-text">
 $($_.name)
 "@
-                    $_.parameter | ForEach-Object -Process {
-                        if ($_.required -eq $true) {
-                            if ($_.position -ne $null) {
-                                $Calc = '[-'
+                        $_.parameter | ForEach-Object -Process {
+                            if ($_.required -eq $true) {
+                                if ($_.position -ne $null) {
+                                    $Calc = '[-'
+                                } else {
+                                    $Calc = '-'
+                                }
+
+                                #Parameter Name
+                                $Calc += $_.name
+
+                                if ($_.position -ne $null) {
+                                    $Calc += ']'
+                                }
+
+                                #Type
+                                if ($_.parameterValue) {
+                                    $Calc += " &lt;$($_.parameterValue)&gt;"
+                                }
                             } else {
-                                $Calc = '-'
-                            }
+                                if ($_.position -ne $null) {
+                                    $Calc = '[[-'
+                                } else {
+                                    $Calc = '[-'
+                                }
 
-                            #Parameter Name
-                            $Calc += $_.name
+                                #Parameter Name
+                                $Calc += $_.name
 
-                            if ($_.position -ne $null) {
-                                $Calc += ']'
+                                if ($_.position -ne $null) {
+                                    $Calc += "]$(if ($_.parameterValue -ne '') {" &lt;$($_.parameterValue)&gt;"})]"
+                                } else {
+                                    $Calc += ']'
+                                }
                             }
-
-                            #Type
-                            if ($_.parameterValue) {
-                                $Calc += " &lt;$($_.parameterValue)&gt;"
-                            }
-                        } else {
-                            if ($_.position -ne $null) {
-                                $Calc = '[[-'
-                            } else {
-                                $Calc = '[-'
-                            }
-
-                            #Parameter Name
-                            $Calc += $_.name
-
-                            if ($_.position -ne $null) {
-                                $Calc += "]$(if ($_.parameterValue -ne '') {" &lt;$($_.parameterValue)&gt;"})]"
-                            } else {
-                                $Calc += ']'
-                            }
-                        }
-                        $Output += @"
+                            $Output += @"
 
     $Calc
 "@
-                    }
-                    $Output += @"
+                        }
+                        $Output += @"
         </pre>
     </div>
 </div>
 <p>$($_.remarks.text)</p>
 "@
 
-                    Write-Output -InputObject $Output
+                        Write-Output -InputObject $Output
+                    }
                 }
             }
-        }
-        Process {    
-            #Menu
-            $ContentId = $HelpObject.Name -replace '\*|\W',''
+            Process {    
+                #Menu
+                $ContentId = $HelpObject.Name -replace '\*|\W',''
 
-            if (Test-Path -Path $HelpObject.Name) {
-                $Name = Get-ItemProperty -Path $HelpObject.Name | Select-Object -ExpandProperty Name
-            } else {
-                $Name = $HelpObject.Name
-            }
+                if (Test-Path -Path $HelpObject.Name) {
+                    $Name = Get-ItemProperty -Path $HelpObject.Name | Select-Object -ExpandProperty Name
+                } else {
+                    $Name = $HelpObject.Name
+                }
 
-            $MenuEntry = "<li><button type=`"button`" class=`"btn btn-link`" OnClick=`"displayOnly('#$ContentId')`">$($Name)</button></li>"
+                $MenuEntry = "<li><button type=`"button`" class=`"btn btn-link`" OnClick=`"displayOnly('#$ContentId')`">$($Name)</button></li>"
 
-            #Help Required Parameters
-            $RequiredParametersOutput = $HelpObject.parameters.parameter | Where-Object -FilterScript {$_.required -eq $true} | New-HelpParameterToHtml
+                #Help Required Parameters
+                $RequiredParametersOutput = $HelpObject.parameters.parameter | Where-Object -FilterScript {$_.required -eq $true} | New-HelpParameterToHtml
 
-            #Help Optional Parameters
-            $OptionalParametersOutput = $HelpObject.parameters.parameter | Where-Object -FilterScript {$_.required -eq $false} | New-HelpParameterToHtml
+                #Help Optional Parameters
+                $OptionalParametersOutput = $HelpObject.parameters.parameter | Where-Object -FilterScript {$_.required -eq $false} | New-HelpParameterToHtml
 
-            #Help Examples
-            if ($HelpObject.examples -ne $null) {
-                $ExampleOutput = $HelpObject.examples.example | New-HelpExampleToHtml
-            } else {
-                $ExampleOutput = $null
-            }
+                #Help Examples
+                if ($HelpObject.examples -ne $null) {
+                    $ExampleOutput = $HelpObject.examples.example | New-HelpExampleToHtml
+                } else {
+                    $ExampleOutput = $null
+                }
 
-            #Help Syntax
-            if ($HelpObject.syntax -ne $null) {
-                $SyntaxOutput = $HelpObject.syntax.syntaxItem | New-HelpSyntaxToHtml
-            } else {
-                $SyntaxOutput = $null
-            }
+                #Help Syntax
+                if ($HelpObject.syntax -ne $null) {
+                    $SyntaxOutput = $HelpObject.syntax.syntaxItem | New-HelpSyntaxToHtml
+                } else {
+                    $SyntaxOutput = $null
+                }
 
-            #Content
-            $HtmlEntry = @"
+                #Content
+                $HtmlEntry = @"
 <div id="$($ContentId)" class="row">
     <div class="col-md-9">
         <h1>$Name</h1>
@@ -345,144 +368,176 @@ $($_.name)
 </div>
 "@
 
-            #Output
-            New-Object -TypeName PSObject -Property @{
-                Menu    = $MenuEntry
-                Content = $HtmlEntry
+                #Output
+                New-Object -TypeName PSObject -Property @{
+                    Menu    = $MenuEntry
+                    Content = $HtmlEntry
+                }
             }
         }
-    }
-    Function New-ModuleHelpToHtml {
-        Param(
-            [Parameter(
-                Mandatory = $true,
-                HelpMessage = 'Module name to convert Help to HTML.'
-            )]
-            [String]$ModuleName
-        )
-        $Commands = Get-Command -Module $ModuleName
+        Function New-ModuleHelpToHtml {
+            Param(
+                [Parameter(
+                    Mandatory = $true,
+                    HelpMessage = 'Module name to convert Help to HTML.'
+                )]
+                [String]$ModuleName,
 
-        #Start with Content
-        $Commands | ForEach-Object -Begin {
-            $LeftMenu = @'
+                [Collections.ArrayList]$RelatedHelpFiles
+            )
+            $Commands = Get-Command -Module $ModuleName
+
+            #Start with Content
+            $Commands | ForEach-Object -Begin {
+                $LeftMenu = @'
 <div class="col-3">
     <h5 class="text-secondary">Available Cmdlets</h5>
     <ul class="list-unstyled left-menu">
 '@
-            $MainContent = @'
+                $MainContent = @'
 <div class="col-9" id="content">
 '@
-        } -Process {
-            $HtmlEntry = Convert-HelpToHtml -HelpObject (Get-Help -Name $_.Name -Full)
-            $LeftMenu    += $HtmlEntry.Menu
-            $MainContent += $HtmlEntry.Content
+            } -Process {
+                $HtmlEntry = Convert-HelpToHtml -HelpObject (Get-Help -Name $_.Name -Full)
+                $LeftMenu    += $HtmlEntry.Menu
+                $MainContent += $HtmlEntry.Content
 
-        } -End {
-            $LeftMenu += @'
+            } -End {
+                #Closing Menu & MainContent Valriables
+                if ($RelatedHelpFiles) {
+                    $RelatedHelpFiles | ForEach-Object -Begin {
+                        $LeftMenu += @'
+    </ul>
+    <h5 class="text-secondary">Related helps</h5>
+    <ul class="list-unstyled left-menu">
+'@
+                    } -Process {
+                        $LeftMenu += @"
+        <li><a href="$($_.UriOrFilePath)">$($_.Title)</a></li>
+"@
+                    }
+                }
+                $LeftMenu += @'
     </ul>
 </div>
 '@
-            $MainContent += @'
+                $MainContent += @'
 </div>
 '@
-        }
+            }
 
-        $LeftMenu, $MainContent
-    }
-    Function New-CommandHelpToHtml {
-        [CmdletBinding()]
-        Param(
-            [Parameter(
-                Mandatory = $true,
-                HelpMessage = 'Command to convet Help to HTML for.',
-                ValueFromPipeline = $true
-            )]
-            [String]$Command
-        )
-        Begin {
-            #Open Menu & MainContent Valriables
-            $LeftMenu = @'
+            $LeftMenu, $MainContent
+        }
+        Function New-CommandHelpToHtml {
+            [CmdletBinding()]
+            Param(
+                [Parameter(
+                    Mandatory = $true,
+                    HelpMessage = 'Command to convet Help to HTML for.',
+                    ValueFromPipeline = $true
+                )]
+                [String]$Command,
+
+                [Collections.ArrayList]$RelatedHelpFiles
+            )
+            Begin {
+                #Open Menu & MainContent Valriables
+                $LeftMenu = @'
 <div class="col-3">
     <h5 class="text-secondary">Available Cmdlets</h5>
     <ul class="list-unstyled left-menu">
 '@
-            $MainContent = @'
+                $MainContent = @'
 <div class="col-9" id="content">
 '@
-        }
-        Process {
-            $HtmlEntry = Convert-HelpToHtml -HelpObject (Get-Help -Name $Command -Full)
-            $LeftMenu    += $HtmlEntry.Menu
-            $MainContent += $HtmlEntry.Content
-        }
-        End {
-            #Closing Menu & MainContent Valriables
-            $LeftMenu += @'
+            }
+            Process {
+                $HtmlEntry = Convert-HelpToHtml -HelpObject (Get-Help -Name $Command -Full)
+                $LeftMenu    += $HtmlEntry.Menu
+                $MainContent += $HtmlEntry.Content
+            }
+            End {
+                #Closing Menu & MainContent Valriables
+                if ($RelatedHelpFiles) {
+                    $RelatedHelpFiles | ForEach-Object -Begin {
+                        $LeftMenu += @'
+    </ul>
+    <h5 class="text-secondary">Related helps</h5>
+    <ul class="list-unstyled left-menu">
+'@
+                    } -Process {
+                        $LeftMenu += @"
+        <li><a href="$($_.UriOrFilePath)">$($_.Title)</a></li>
+"@
+                    }
+                }
+                $LeftMenu += @'
     </ul>
 </div>
 '@
-            $MainContent += @'
+                $MainContent += @'
 </div>
 '@
 
-            #Return Variables
-            $LeftMenu
-            $MainContent
+                #Return Variables
+                $LeftMenu
+                $MainContent
+            }
         }
     }
-
-    if ($PSCmdlet.ParameterSetName -eq 'Module') {
-        if (Test-Path -Path $Module -ErrorAction SilentlyContinue) {
-            $ModuleInfo = Get-ItemProperty -Path $Module
-            try {
-                Import-Module $ModuleInfo.FullName
-                Write-Verbose -Message "Imported module $($ModuleInfo.FullName)"
-            }
-            catch {
-                Write-Error -Message $_
-            }
-            $Module = $ModuleInfo.BaseName
-        } else {
-            if (Get-Module -Name $Module -ListAvailable) {
+    Process {
+        if ($PSCmdlet.ParameterSetName -eq 'Module') {
+            if (Test-Path -Path $Module -ErrorAction SilentlyContinue) {
+                $ModuleInfo = Get-ItemProperty -Path $Module
                 try {
-                    Import-Module -Name $Module
+                    Import-Module -Name $ModuleInfo.FullName
                     Write-Verbose -Message "Imported module $($ModuleInfo.FullName)"
                 }
                 catch {
                     Write-Error -Message $_
                 }
+                $Module = $ModuleInfo.BaseName
             } else {
-                Throw 'Module not available on this computer.'
+                if (Get-Module -Name $Module -ListAvailable) {
+                    try {
+                        Import-Module -Name $Module
+                        Write-Verbose -Message "Imported module $($ModuleInfo.FullName)"
+                    }
+                    catch {
+                        Write-Error -Message $_
+                    }
+                } else {
+                    Throw 'Module not available on this computer.'
+                }
             }
+
+            $HtmlTitle   = "$Module - PowerShell Help"
+            $FileName    = "$OutputFolder\$Module.html"
+            $MainContent = New-ModuleHelpToHtml -ModuleName $Module -RelatedHelpFiles $RelatedHelpFiles
+
+            Remove-Module -Name $ModuleInfo.BaseName
+        }
+        elseif ($PSCmdlet.ParameterSetName -eq 'Command') {
+            $HtmlTitle   = if (($Command | Measure-Object).count -gt 1) {
+                'PowerShell Help'
+            } else {
+                "$Command - PowerShell Help"
+            }
+            $FileName    = if (($Command | Measure-Object).count -gt 1) {
+                "$OutputFolder\HelpToHtml_$((Get-Date).ToString('yyyyMMdd')).html"
+            } else {
+                "$OutputFolder\$Command.html"
+            }
+            $MainContent = $Command | New-CommandHelpToHtml -RelatedHelpFiles $RelatedHelpFiles
+        }
+        elseif ($PSCmdlet.ParameterSetName -eq 'Script') {
+            $ScriptProperty = Get-ItemProperty -Path $Script
+            $HtmlTitle      = "$($ScriptProperty.Name) - PowerShell Help"
+            $FileName       = "$OutputFolder\$($ScriptProperty.BaseName)-Help.html"
+            $MainContent    = New-CommandHelpToHtml -Command $Script -RelatedHelpFiles $RelatedHelpFiles
         }
 
-        $HtmlTitle   = "$Module - PowerShell Help to Html"
-        $FileName    = "$OutputFolder\$Module.html"
-        $MainContent = New-ModuleHelpToHtml -ModuleName $Module
-
-        Remove-Module -Name $ModuleInfo.BaseName
-    }
-    elseif ($PSCmdlet.ParameterSetName -eq 'Command') {
-        $HtmlTitle   = if (($Command | Measure-Object).count -gt 1) {
-            'PowerShell Help to Html'
-        } else {
-            "$Command - PowerShell Help to Html"
-        }
-        $FileName    = if (($Command | Measure-Object).count -gt 1) {
-            "$OutputFolder\HelpToHtml_$((Get-Date).ToString('yyyyMMdd')).html"
-        } else {
-            "$OutputFolder\$Command.html"
-        }
-        $MainContent = $Command | New-CommandHelpToHtml
-    }
-    elseif ($PSCmdlet.ParameterSetName -eq 'Script') {
-        $ScriptProperty = Get-ItemProperty -Path $Script
-        $HtmlTitle      = "$($ScriptProperty.Name) - PowerShell Help to Html"
-        $FileName       = "$OutputFolder\$($ScriptProperty.BaseName)-Help.html"
-        $MainContent    = New-CommandHelpToHtml -Command $Script
-    }
-
-    $Header = @"
+        $Header = @"
 <!doctype html>
 <html lang="en">
     <head>
@@ -551,12 +606,12 @@ function topFunction() {
                 <span class="navbar-text">
                     <div class="btn-group dropleft">
                         <button type="button" class="btn btn-danger dropdown-toggle" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
-                            Action
+                            Informations
                         </button>
                         <div class="dropdown-menu">
                             <a class="dropdown-item"><strong>Generated on:</strong> $(Get-Date)</a>
                             <div class="dropdown-divider"></div>
-                            <a class="dropdown-item" href="https://github.com/PrudhommeWTF/PSHelp_to_Html" target="_blank"><i class="fab fa-github-alt"></i> Separated link</a>
+                            <a class="dropdown-item" href="https://github.com/PrudhommeWTF/PSHelp_to_Html" target="_blank"><i class="fab fa-github-square"></i> PSHelp_to_Html on GitHub</a>
                         </div>
                     </div>
                 </span>
@@ -564,7 +619,7 @@ function topFunction() {
             <div class="container-fluid">
                 <div class="row">
 "@
-    $Footer = @'
+        $Footer = @'
                 </div>
             </div>
         </div>
@@ -580,5 +635,6 @@ function topFunction() {
 </html>
 '@
     
-    $Header, $MainContent, $Footer |  Out-File -FilePath $FileName
+        $Header, $MainContent, $Footer |  Out-File -FilePath $FileName
+    }
 }
